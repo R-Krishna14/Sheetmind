@@ -1,5 +1,7 @@
 # SheetMind Pro
 
+🚀 Live Demo: https://r-krishna14.github.io/Sheetmind/
+``
 **SheetMind Pro** is a browser-only Excel intelligence web app that transforms any spreadsheet into a powerful interactive experience.
 
 ## ✨ Features
