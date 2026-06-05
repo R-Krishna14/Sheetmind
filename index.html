@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SheetMind Pro v2</title>
+<title>SheetMind Pro v4</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=JetBrains+Mono:wght@300;400;500&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -461,7 +461,7 @@ td.cell-only-b { background: rgba(255,176,32,0.05); }
   <div class="brand">
     <div class="brand-dot"></div>
     SheetMind Pro
-    <span class="brand-ver">v2</span>
+    <span class="brand-ver">v4</span>
   </div>
   <div class="topbar-spacer"></div>
   <div class="topbar-pills" id="topbarPills" style="display:none;">
@@ -473,9 +473,13 @@ td.cell-only-b { background: rgba(255,176,32,0.05); }
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
       Visualise
     </button>
-    <button class="pill" onclick="exportCSV()">
+    <button class="pill" onclick="exportCSV()" title="Export visible rows as CSV">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-      Export
+      CSV
+    </button>
+    <button class="pill teal" onclick="exportXLSX()" title="Export visible rows as Excel .xlsx">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Excel
     </button>
     <button class="pill lime" onclick="resetApp()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 2v6h6"/><path d="M21 12A9 9 0 006 5.3L3 8"/></svg>
@@ -490,7 +494,7 @@ td.cell-only-b { background: rgba(255,176,32,0.05); }
 <!-- ══════════════════ UPLOAD SCREEN ══════════════════ -->
 <div id="screen-upload">
   <div class="hero">
-    <div class="hero-eyebrow"><span>✦</span> SheetMind Pro v2 · Now with VLOOKUP &amp; Compare</div>
+    <div class="hero-eyebrow"><span>✦</span> SheetMind Pro v4 · Now with Excel Export, Duplicate Detector &amp; Color Diff</div>
     <h1 class="hero-title">Two files.<br><em>Total clarity.</em></h1>
     <p class="hero-sub">Upload one or two Excel files. Get instant VLOOKUP across sheets, side-by-side comparison, missing row detection, formula engine, pivot tables, AI queries, and charts — all in the browser.</p>
     <div class="features-strip">
@@ -620,6 +624,10 @@ td.cell-only-b { background: rgba(255,176,32,0.05); }
           <button class="tb-btn" onclick="toggleSidebar()">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
             Columns
+          </button>
+          <button class="tb-btn" id="dupBtn" onclick="runDuplicateDetector()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+            Duplicates
           </button>
           <div class="tb-spacer"></div>
           <div class="results-pill" id="resultsPill"><span>0</span> rows</div>
@@ -785,6 +793,24 @@ td.cell-only-b { background: rgba(255,176,32,0.05); }
   </div>
 </div>
 
+<!-- DUPLICATE DETECTOR MODAL -->
+<div class="modal-bg" id="dupModal">
+  <div class="modal" style="max-width:680px;width:95%;">
+    <button class="modal-close" onclick="closeDupModal()">✕</button>
+    <div class="modal-title">🔍 Duplicate Detector</div>
+    <div class="modal-sub">Find rows that share the same value in a chosen column. Useful for catching duplicate ticket IDs, pool names, or any key field before approval.</div>
+    <div class="field" style="margin-bottom:14px;">
+      <label class="field-lbl">Check duplicates in column</label>
+      <select class="field-ctrl" id="dupColSel"></select>
+    </div>
+    <div class="modal-actions" style="margin-bottom:16px;">
+      <button class="btn-primary" onclick="detectDuplicates()">▶ Find Duplicates</button>
+      <button class="btn-ghost" onclick="closeDupModal()">Cancel</button>
+    </div>
+    <div id="dupResultArea"></div>
+  </div>
+</div>
+
 <!-- LOADING OVERLAY -->
 <div class="loading-overlay" id="loadingOverlay">
   <div class="loading-card">
@@ -807,6 +833,8 @@ td.cell-only-b { background: rgba(255,176,32,0.05); }
   <div class="kbd-row"><span class="kbd-desc">AI Query panel</span><span class="kbd-key"><kbd>A</kbd></span></div>
   <div class="kbd-row"><span class="kbd-desc">Chart panel</span><span class="kbd-key"><kbd>C</kbd></span></div>
   <div class="kbd-row"><span class="kbd-desc">Export CSV</span><span class="kbd-key"><kbd>Ctrl</kbd>+<kbd>E</kbd></span></div>
+  <div class="kbd-row"><span class="kbd-desc">Export Excel (.xlsx)</span><span class="kbd-key"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>E</kbd></span></div>
+  <div class="kbd-row"><span class="kbd-desc">Duplicate detector</span><span class="kbd-key"><kbd>D</kbd></span></div>
   <div class="kbd-row"><span class="kbd-desc">Next / Prev page</span><span class="kbd-key"><kbd>→</kbd> / <kbd>←</kbd></span></div>
   <div class="kbd-row"><span class="kbd-desc">Show shortcuts</span><span class="kbd-key"><kbd>?</kbd></span></div>
 </div>
@@ -1815,61 +1843,54 @@ function runCompare() {
   });
 
   document.getElementById('cmpResultArea').innerHTML = `
-    <div class="cmp-results">
-      <div class="cmp-card">
-        <div class="cmp-card-title">In Both Files</div>
-        <div class="cmp-count" style="color:var(--teal);">${inBoth.length.toLocaleString()}</div>
-        <div class="cmp-subtitle">Matching rows by key</div>
-        <div class="cmp-card-title" style="margin-top:8px;">Changed</div>
-        <div class="cmp-count" style="color:var(--purple);font-size:22px;">${changed.length.toLocaleString()}</div>
-        <div class="cmp-subtitle">Same key, different values</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;">
+      <div style="display:flex;align-items:center;gap:8px;background:rgba(30,200,168,0.08);border:1px solid rgba(30,200,168,0.25);border-radius:10px;padding:10px 16px;flex:1;min-width:130px;">
+        <span style="font-size:18px;">✅</span>
+        <div><div style="font-family:var(--fd);font-size:20px;font-weight:700;color:var(--teal);">${inBoth.length.toLocaleString()}</div><div style="font-size:11px;color:var(--txt3);">Matched</div></div>
       </div>
-      <div class="cmp-card">
-        <div class="cmp-card-title">Missing from B (only in A)</div>
-        <div class="cmp-count stat-missing">${onlyInA.length.toLocaleString()}</div>
-        <div class="cmp-list">${onlyInA.slice(0,15).map(k=>`<div class="cmp-item missing">${k}</div>`).join('')}${onlyInA.length>15?`<div style="font-size:11px;color:var(--txt3);padding:4px 0;">+${onlyInA.length-15} more</div>`:''}</div>
+      <div style="display:flex;align-items:center;gap:8px;background:rgba(255,87,87,0.08);border:1px solid rgba(255,87,87,0.25);border-radius:10px;padding:10px 16px;flex:1;min-width:130px;">
+        <span style="font-size:18px;">🔴</span>
+        <div><div style="font-family:var(--fd);font-size:20px;font-weight:700;color:var(--red);">${onlyInA.length.toLocaleString()}</div><div style="font-size:11px;color:var(--txt3);">Only in A (removed)</div></div>
       </div>
-      <div class="cmp-card">
-        <div class="cmp-card-title">Extra in B (not in A)</div>
-        <div class="cmp-count stat-extra">${onlyInB.length.toLocaleString()}</div>
-        <div class="cmp-list">${onlyInB.slice(0,15).map(k=>`<div class="cmp-item extra">${k}</div>`).join('')}${onlyInB.length>15?`<div style="font-size:11px;color:var(--txt3);padding:4px 0;">+${onlyInB.length-15} more</div>`:''}</div>
+      <div style="display:flex;align-items:center;gap:8px;background:rgba(200,241,53,0.08);border:1px solid rgba(200,241,53,0.25);border-radius:10px;padding:10px 16px;flex:1;min-width:130px;">
+        <span style="font-size:18px;">🟢</span>
+        <div><div style="font-family:var(--fd);font-size:20px;font-weight:700;color:var(--lime);">${onlyInB.length.toLocaleString()}</div><div style="font-size:11px;color:var(--txt3);">Only in B (added)</div></div>
       </div>
-      <div class="cmp-card">
-        <div class="cmp-card-title">Summary</div>
-        <div style="font-size:13px;color:var(--txt2);line-height:1.8;">
-          File A: <strong style="color:var(--txt)">${dA.rows.length}</strong> rows<br>
-          File B: <strong style="color:var(--txt)">${dB.rows.length}</strong> rows<br>
-          Matched: <strong style="color:var(--teal)">${inBoth.length}</strong><br>
-          Missing from B: <strong style="color:var(--red)">${onlyInA.length}</strong><br>
-          Extra in B: <strong style="color:var(--amber)">${onlyInB.length}</strong><br>
-          Changed rows: <strong style="color:var(--purple)">${changed.length}</strong>
-        </div>
+      <div style="display:flex;align-items:center;gap:8px;background:rgba(255,176,32,0.08);border:1px solid rgba(255,176,32,0.25);border-radius:10px;padding:10px 16px;flex:1;min-width:130px;">
+        <span style="font-size:18px;">🟡</span>
+        <div><div style="font-family:var(--fd);font-size:20px;font-weight:700;color:var(--amber);">${changed.length.toLocaleString()}</div><div style="font-size:11px;color:var(--txt3);">Changed values</div></div>
       </div>
     </div>
-    <div class="cmp-full-table">
-      <div class="cmp-full-head">Full Comparison Table <span style="font-size:12px;color:var(--txt3);font-weight:400;">(key: ${dA.headers[keyIdx]}, showing ${Math.min(allKeys.length,500)} of ${allKeys.length})</span></div>
-      <div style="overflow-x:auto;max-height:500px;overflow-y:auto;">
-        <table style="width:max-content;min-width:100%;border-collapse:collapse;font-size:12px;">
+    <div style="margin-bottom:10px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+      <span style="font-size:12px;color:var(--txt3);font-family:var(--fm);">Legend:</span>
+      <span style="font-size:11px;padding:3px 10px;border-radius:20px;background:rgba(255,87,87,0.13);border-left:3px solid var(--red);color:var(--red);font-family:var(--fm);">🔴 Only in A</span>
+      <span style="font-size:11px;padding:3px 10px;border-radius:20px;background:rgba(200,241,53,0.1);border-left:3px solid var(--lime);color:var(--lime);font-family:var(--fm);">🟢 Only in B</span>
+      <span style="font-size:11px;padding:3px 10px;border-radius:20px;background:rgba(255,176,32,0.09);border-left:3px solid var(--amber);color:var(--amber);font-family:var(--fm);">🟡 Changed</span>
+      <button onclick="exportCompareDiff()" style="margin-left:auto;height:30px;padding:0 14px;border-radius:7px;background:var(--teal);color:var(--ink);font-weight:600;font-size:12px;border:none;cursor:pointer;font-family:var(--f);">⬇ Export Diff as Excel</button>
+    </div>
+    <div class="cmp-results">
+      <div style="overflow-x:auto;border:1px solid var(--edge2);border-radius:10px;">
+        <table style="width:max-content;min-width:100%;border-collapse:collapse;font-size:12.5px;">
           <thead><tr>
             <th style="padding:8px 12px;background:var(--ink4);font-family:var(--fm);font-size:10px;color:var(--txt3);border-bottom:1px solid var(--edge2);white-space:nowrap;position:sticky;top:0;">Status</th>
             ${allHeaders.map(h=>`<th style="padding:8px 12px;background:var(--ink4);font-family:var(--fm);font-size:10px;color:var(--txt3);border-bottom:1px solid var(--edge2);white-space:nowrap;position:sticky;top:0;">A: ${h}</th>`).join('')}
             ${dB.headers.map(h=>`<th style="padding:8px 12px;background:rgba(30,200,168,0.06);font-family:var(--fm);font-size:10px;color:var(--teal);border-bottom:1px solid var(--edge2);white-space:nowrap;position:sticky;top:0;">B: ${h}</th>`).join('')}
           </tr></thead>
           <tbody>${rows.map(({k, status, rA, rB}) => {
-            const rowBg = status==='only-a' ? 'background:rgba(200,241,53,0.03);' : status==='only-b' ? 'background:rgba(255,176,32,0.03);' : status==='changed' ? 'background:rgba(155,109,255,0.03);' : '';
+            const rowBg = status==='only-a' ? 'background:rgba(255,87,87,0.13);border-left:3px solid var(--red);' : status==='only-b' ? 'background:rgba(200,241,53,0.1);border-left:3px solid var(--lime);' : status==='changed' ? 'background:rgba(255,176,32,0.09);border-left:3px solid var(--amber);' : '';
             return `<tr style="${rowBg}">
               <td style="padding:7px 12px;border-bottom:1px solid var(--edge);white-space:nowrap;"><span class="row-status-chip ${status}">${statusLabel[status]}</span></td>
               ${allHeaders.map((_, i) => {
                 const vA = String(rA[i]||'');
                 const vB = String(rB[i]||'');
                 const isDiff = status==='changed' && i!==keyIdx && vA!==vB;
-                return `<td style="padding:7px 12px;border-bottom:1px solid var(--edge);color:${isDiff?'var(--lime)':'var(--txt2)'};${isDiff?'font-weight:600;':''}">${vA}</td>`;
+                return `<td style="padding:7px 12px;border-bottom:1px solid var(--edge);color:${isDiff?'var(--amber)':'var(--txt2)'};${isDiff?'font-weight:600;background:rgba(255,176,32,0.08);':''}" title="${isDiff?'Changed: was '+vA:''}">${vA}${isDiff?'<span style="font-size:9px;margin-left:4px;color:var(--amber);opacity:0.7;">●</span>':''}</td>`;
               }).join('')}
               ${dB.headers.map((_, i) => {
                 const vA = String(rA[i]||'');
                 const vB = String(rB[i]||'');
                 const isDiff = status==='changed' && i!==keyIdx && vA!==vB;
-                return `<td style="padding:7px 12px;border-bottom:1px solid var(--edge);color:${isDiff?'var(--purple)':'var(--txt2)'};${isDiff?'font-weight:600;background:rgba(155,109,255,0.06);':''}">${vB}</td>`;
+                return `<td style="padding:7px 12px;border-bottom:1px solid var(--edge);color:${isDiff?'var(--lime)':'var(--txt2)'};${isDiff?'font-weight:600;background:rgba(200,241,53,0.08);':''}">${vB}${isDiff?'<span style="font-size:9px;margin-left:4px;color:var(--lime);opacity:0.7;">✓</span>':''}</td>`;
               }).join('')}
             </tr>`;
           }).join('')}</tbody>
@@ -2071,8 +2092,162 @@ function exportCSV() {
 }
 
 // ═══════════════════════════════════
-//  RESET
+//  EXPORT XLSX  (Feature 1)
 // ═══════════════════════════════════
+function exportXLSX() {
+  const visibleCols2 = colMeta.filter(c => !hiddenCols.has(c.idx));
+  const rows2 = filteredRows.length ? filteredRows : sheets[activeSheet].rows;
+  const wsData = [
+    visibleCols2.map(c => c.name),
+    ...rows2.map(r => visibleCols2.map(c => r[c.idx] ?? ''))
+  ];
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+  // Bold the header row
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  for (let col = range.s.c; col <= range.e.c; col++) {
+    const addr = XLSX.utils.encode_cell({ r: 0, c: col });
+    if (!ws[addr]) continue;
+    ws[addr].s = { font: { bold: true } };
+  }
+  // Auto column widths
+  ws['!cols'] = visibleCols2.map(c => ({ wch: Math.min(Math.max(c.name.length + 2, 10), 40) }));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, activeSheet.slice(0, 31));
+  XLSX.writeFile(wb, `${activeSheet}_export_${new Date().toISOString().slice(0, 10)}.xlsx`);
+}
+
+// ═══════════════════════════════════
+//  EXPORT COMPARE DIFF AS XLSX  (Feature 3 bonus)
+// ═══════════════════════════════════
+function exportCompareDiff() {
+  const shA = document.getElementById('cmpSheetA')?.value;
+  const shB = document.getElementById('cmpSheetB')?.value;
+  const keyIdx = parseInt(document.getElementById('cmpKeyCol')?.value || '0');
+  if (!shA || !shB || !filesData.A || !filesData.B) { alert('Run a comparison first.'); return; }
+  const dA = filesData.A.sheets[shA];
+  const dB = filesData.B.sheets[shB];
+  if (!dA || !dB) return;
+
+  const keysA = new Map(); dA.rows.forEach(r => { const k=String(r[keyIdx]||'').trim(); if(k) keysA.set(k,r); });
+  const keysB = new Map(); dB.rows.forEach(r => { const k=String(r[keyIdx]||'').trim(); if(k) keysB.set(k,r); });
+  const allKeys = [...new Set([...keysA.keys(), ...keysB.keys()])];
+  const allHeaders = dA.headers.length >= dB.headers.length ? dA.headers : dB.headers;
+
+  const wsData = [['Status', 'Key', ...allHeaders.map(h=>'A: '+h), ...dB.headers.map(h=>'B: '+h)]];
+  allKeys.forEach(k => {
+    const rA = keysA.get(k)||[], rB = keysB.get(k)||[];
+    let status = 'In Both';
+    if (!keysA.has(k)) status = 'Only in B (Added)';
+    else if (!keysB.has(k)) status = 'Only in A (Removed)';
+    else {
+      const cols = Math.min(dA.headers.length, dB.headers.length);
+      for (let i=0; i<cols; i++) { if(i!==keyIdx && String(rA[i]||'').trim()!==String(rB[i]||'').trim()){ status='Changed'; break; } }
+    }
+    wsData.push([status, k, ...allHeaders.map((_,i)=>rA[i]??''), ...dB.headers.map((_,i)=>rB[i]??'')]);
+  });
+
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+  ws['!cols'] = [{ wch: 18 }, { wch: 20 }, ...allHeaders.map(h => ({ wch: Math.min(h.length+4, 30) }))];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Diff');
+  XLSX.writeFile(wb, `compare_diff_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
+// ═══════════════════════════════════
+//  DUPLICATE DETECTOR  (Feature 2)
+// ═══════════════════════════════════
+function runDuplicateDetector() {
+  const sel = document.getElementById('dupColSel');
+  sel.innerHTML = colMeta.map(c => `<option value="${c.idx}">${c.name} (${c.type})</option>`).join('');
+  document.getElementById('dupResultArea').innerHTML = '';
+  document.getElementById('dupModal').classList.add('open');
+}
+
+function detectDuplicates() {
+  const colIdx = parseInt(document.getElementById('dupColSel').value);
+  const colName = colMeta.find(c => c.idx === colIdx)?.name || 'column';
+  const rows2 = filteredRows.length ? filteredRows : sheets[activeSheet].rows;
+
+  const freq = new Map();
+  rows2.forEach((r, i) => {
+    const val = String(r[colIdx] ?? '').trim();
+    if (!val) return;
+    if (!freq.has(val)) freq.set(val, []);
+    freq.get(val).push(i + 1); // 1-indexed row number
+  });
+
+  const dupes = [...freq.entries()].filter(([,idxs]) => idxs.length > 1).sort((a,b) => b[1].length - a[1].length);
+
+  if (!dupes.length) {
+    document.getElementById('dupResultArea').innerHTML = `
+      <div style="text-align:center;padding:24px;color:var(--teal);">
+        <div style="font-size:32px;margin-bottom:8px;">✅</div>
+        <div style="font-family:var(--fd);font-size:16px;font-weight:700;">No duplicates found!</div>
+        <div style="font-size:13px;color:var(--txt3);margin-top:4px;">All values in <strong>${colName}</strong> are unique.</div>
+      </div>`;
+    return;
+  }
+
+  const totalDupeRows = dupes.reduce((s,[,idxs]) => s + idxs.length, 0);
+  let html = `
+    <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;">
+      <div style="background:rgba(255,87,87,0.1);border:1px solid rgba(255,87,87,0.3);border-radius:8px;padding:10px 16px;flex:1;min-width:120px;">
+        <div style="font-family:var(--fd);font-size:22px;font-weight:700;color:var(--red);">${dupes.length}</div>
+        <div style="font-size:11px;color:var(--txt3);">Duplicate values</div>
+      </div>
+      <div style="background:rgba(255,176,32,0.1);border:1px solid rgba(255,176,32,0.3);border-radius:8px;padding:10px 16px;flex:1;min-width:120px;">
+        <div style="font-family:var(--fd);font-size:22px;font-weight:700;color:var(--amber);">${totalDupeRows}</div>
+        <div style="font-size:11px;color:var(--txt3);">Affected rows</div>
+      </div>
+      <div style="display:flex;align-items:center;">
+        <button onclick="exportDupesXLSX()" style="height:36px;padding:0 16px;border-radius:7px;background:var(--lime);color:var(--ink);font-weight:700;font-size:12px;border:none;cursor:pointer;font-family:var(--f);">⬇ Export Duplicates</button>
+      </div>
+    </div>
+    <div style="font-family:var(--fm);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--txt3);margin-bottom:8px;">Duplicate values in <span style="color:var(--lime);">${colName}</span></div>
+    <div style="max-height:340px;overflow-y:auto;border:1px solid var(--edge2);border-radius:8px;">
+    <table style="width:100%;border-collapse:collapse;font-size:12px;">
+      <thead><tr>
+        <th style="padding:8px 12px;background:var(--ink4);font-family:var(--fm);font-size:10px;color:var(--txt3);border-bottom:1px solid var(--edge2);text-align:left;position:sticky;top:0;">Value</th>
+        <th style="padding:8px 12px;background:var(--ink4);font-family:var(--fm);font-size:10px;color:var(--txt3);border-bottom:1px solid var(--edge2);text-align:center;position:sticky;top:0;">Count</th>
+        <th style="padding:8px 12px;background:var(--ink4);font-family:var(--fm);font-size:10px;color:var(--txt3);border-bottom:1px solid var(--edge2);text-align:left;position:sticky;top:0;">Row numbers</th>
+      </tr></thead>
+      <tbody>`;
+  dupes.forEach(([val, rowNums]) => {
+    html += `<tr>
+      <td style="padding:8px 12px;border-bottom:1px solid var(--edge);color:var(--txt);font-weight:600;">${val}</td>
+      <td style="padding:8px 12px;border-bottom:1px solid var(--edge);color:var(--red);font-family:var(--fm);font-weight:700;text-align:center;">${rowNums.length}</td>
+      <td style="padding:8px 12px;border-bottom:1px solid var(--edge);color:var(--txt3);font-family:var(--fm);font-size:11px;">${rowNums.slice(0,20).join(', ')}${rowNums.length>20?` … +${rowNums.length-20} more`:''}</td>
+    </tr>`;
+  });
+  html += `</tbody></table></div>`;
+  document.getElementById('dupResultArea').innerHTML = html;
+
+  // store for export
+  window._lastDupData = { dupes, colName, colIdx, rows: rows2, headers: sheets[activeSheet].headers };
+}
+
+function exportDupesXLSX() {
+  if (!window._lastDupData) return;
+  const { dupes, colName, colIdx, rows, headers } = window._lastDupData;
+  const dupeRowNums = new Set(dupes.flatMap(([,idxs]) => idxs.map(i => i - 1)));
+  const wsData = [
+    ['Duplicate Value', ...headers],
+    ...[...dupeRowNums].sort((a,b)=>a-b).map(i => {
+      const val = String(rows[i][colIdx]??'').trim();
+      return [val, ...headers.map((_,ci) => rows[i][ci] ?? '')];
+    })
+  ];
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+  ws['!cols'] = [{ wch: 24 }, ...headers.map(h => ({ wch: Math.min(h.length+4, 30) }))];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Duplicates');
+  XLSX.writeFile(wb, `duplicates_${colName}_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
+function closeDupModal() {
+  document.getElementById('dupModal').classList.remove('open');
+  window._lastDupData = null;
+}
 function resetApp() {
   filesData = { A: null, B: null };
   sheets = {}; activeSheet = ''; colMeta = []; hiddenCols = new Set();
@@ -2150,6 +2325,7 @@ document.addEventListener('keydown', (e) => {
     const kbd = document.getElementById('kbdToast');
     if (kbd.style.display !== 'none') { kbd.style.display = 'none'; return; }
     if (document.getElementById('settingsModal').classList.contains('open')) { closeSettings(); return; }
+    if (document.getElementById('dupModal').classList.contains('open')) { closeDupModal(); return; }
     if (document.getElementById('aiPanel').classList.contains('open')) { closeAI(); return; }
     if (document.getElementById('chartPanel').classList.contains('open')) { closeChart(); return; }
     if (filters.length || searchQuery) { clearAllFilters(); return; }
@@ -2160,6 +2336,8 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'a' || e.key === 'A') { openAIPanel(); return; }
   if (e.key === 'c' || e.key === 'C') { openChartPanel(); return; }
   if ((e.ctrlKey || e.metaKey) && e.key === 'e') { e.preventDefault(); exportCSV(); return; }
+  if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'E') { e.preventDefault(); exportXLSX(); return; }
+  if (e.key === 'd' || e.key === 'D') { runDuplicateDetector(); return; }
   if (e.key === 'ArrowRight' && !e.ctrlKey) { changePage(currentPage + 1); return; }
   if (e.key === 'ArrowLeft' && !e.ctrlKey) { changePage(currentPage - 1); return; }
 });
